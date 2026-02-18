@@ -1,0 +1,30 @@
+import TeamInvitation from "@/components/emails/team-invitation";
+
+import { sendEmail } from "@/lib/resend";
+
+export const sendTeammateInviteEmail = async ({
+  senderName,
+  senderEmail,
+  teamName,
+  to,
+  url,
+}: {
+  senderName: string;
+  senderEmail: string;
+  teamName: string;
+  to: string;
+  url: string;
+}) => {
+  await sendEmail({
+    to: to,
+    subject: `You've been invited to join ${teamName}`,
+    react: TeamInvitation({
+      senderName,
+      senderEmail,
+      teamName,
+      url,
+    }),
+    test: process.env.NODE_ENV === "development",
+    system: true,
+  });
+};

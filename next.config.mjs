@@ -1,0 +1,255 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  output: "standalone",
+  pageExtensions: ["js", "jsx", "ts", "tsx", "mdx"],
+  
+  // Build optimizations for memory-constrained environments
+  productionBrowserSourceMaps: false, // Disable source maps to save memory
+  experimental: {
+    // Reduce memory pressure during build
+    workerThreads: false,
+    cpus: 1,
+  },
+  
+  // Skip type checking during build (run separately in CI)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
+  // Allow cross-origin requests from Replit dev environment
+  allowedDevOrigins: [
+    "localhost:5000",
+    "127.0.0.1:5000",
+    "0.0.0.0:5000",
+  ],
+  images: {
+    minimumCacheTTL: 2592000, // 30 days
+    remotePatterns: prepareRemotePatterns(),
+  },
+  skipTrailingSlashRedirect: true,
+  assetPrefix:
+    process.env.NODE_ENV === "production" &&
+    process.env.VERCEL_ENV === "production"
+      ? process.env.NEXT_PUBLIC_BASE_URL
+      : undefined,
+  async redirects() {
+    return [
+      ...(process.env.NEXT_PUBLIC_APP_BASE_HOST
+        ? [
+            {
+              source: "/",
+              destination: "/login",
+              permanent: false,
+              has: [
+                {
+                  type: "host",
+                  value: process.env.NEXT_PUBLIC_APP_BASE_HOST,
+                },
+              ],
+            },
+          ]
+        : []),
+      {
+        // temporary redirect set on 2025-10-22
+        source: "/view/cmdn06aw00001ju04jgsf8h4f",
+        destination: "/view/cmh0uiv6t001mjm04sk10ecc8",
+        permanent: false,
+      },
+      {
+        source: "/settings",
+        destination: "/settings/general",
+        permanent: false,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
+          },
+          {
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
+          },
+        ],
+      },
+      {
+        source: "/view/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex",
+          },
+        ],
+      },
+      ...(process.env.NEXT_PUBLIC_WEBHOOK_BASE_HOST
+        ? [
+            {
+              source: "/services/:path*",
+              has: [
+                {
+                  type: "host",
+                  value: process.env.NEXT_PUBLIC_WEBHOOK_BASE_HOST,
+                },
+              ],
+              headers: [
+                {
+                  key: "X-Robots-Tag",
+                  value: "noindex",
+                },
+              ],
+            },
+          ]
+        : []),
+      {
+        source: "/api/webhooks/services/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex",
+          },
+        ],
+      },
+      {
+        source: "/unsubscribe",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex",
+          },
+        ],
+      },
+      {
+        // Service worker - never cache to ensure updates are immediate
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
+      },
+      {
+        // Manifest - short cache to pick up updates
+        source: "/manifest.json",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600",
+          },
+        ],
+      },
+    ];
+  },
+  allowedDevOrigins: ["*"],
+  serverExternalPackages: ["nodemailer"],
+  outputFileTracingIncludes: {
+    "/api/mupdf/*": ["./node_modules/mupdf/dist/*.wasm"],
+  },
+  turbopack: {},
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        dns: false,
+        tls: false,
+        child_process: false,
+      };
+    }
+    return config;
+  },
+};
+
+function prepareRemotePatterns() {
+  let patterns = [
+    // FundRoom AI platform domains
+    { protocol: "https", hostname: "fundroom.ai" },
+    { protocol: "https", hostname: "*.fundroom.ai" },
+    // Legacy tenant domains (Bermuda Franchise Group — keep until migrated)
+    { protocol: "https", hostname: "dataroom.bermudafranchisegroup.com" },
+    { protocol: "https", hostname: "*.bermudafranchisegroup.com" },
+    // twitter img
+    { protocol: "https", hostname: "pbs.twimg.com" },
+    // linkedin img
+    { protocol: "https", hostname: "media.licdn.com" },
+    // google img
+    { protocol: "https", hostname: "lh3.googleusercontent.com" },
+    // useragent img
+    { protocol: "https", hostname: "faisalman.github.io" },
+    // Replit Object Storage
+    { protocol: "https", hostname: "*.replit.app" },
+    { protocol: "https", hostname: "objectstorage.replit.app" },
+  ];
+
+  // Default region patterns
+  if (process.env.NEXT_PRIVATE_UPLOAD_DISTRIBUTION_HOST) {
+    patterns.push({
+      protocol: "https",
+      hostname: process.env.NEXT_PRIVATE_UPLOAD_DISTRIBUTION_HOST,
+    });
+  }
+
+  if (process.env.NEXT_PRIVATE_ADVANCED_UPLOAD_DISTRIBUTION_HOST) {
+    patterns.push({
+      protocol: "https",
+      hostname: process.env.NEXT_PRIVATE_ADVANCED_UPLOAD_DISTRIBUTION_HOST,
+    });
+  }
+
+  // US region patterns
+  if (process.env.NEXT_PRIVATE_UPLOAD_DISTRIBUTION_HOST_US) {
+    patterns.push({
+      protocol: "https",
+      hostname: process.env.NEXT_PRIVATE_UPLOAD_DISTRIBUTION_HOST_US,
+    });
+  }
+
+  if (process.env.NEXT_PRIVATE_ADVANCED_UPLOAD_DISTRIBUTION_HOST_US) {
+    patterns.push({
+      protocol: "https",
+      hostname: process.env.NEXT_PRIVATE_ADVANCED_UPLOAD_DISTRIBUTION_HOST_US,
+    });
+  }
+
+  if (process.env.VERCEL_ENV === "production") {
+    patterns.push({
+      // production vercel blob
+      protocol: "https",
+      hostname: "yoywvlh29jppecbh.public.blob.vercel-storage.com",
+    });
+  }
+
+  if (
+    process.env.VERCEL_ENV === "preview" ||
+    process.env.NODE_ENV === "development"
+  ) {
+    patterns.push({
+      // staging vercel blob
+      protocol: "https",
+      hostname: "36so9a8uzykxknsu.public.blob.vercel-storage.com",
+    });
+  }
+
+  return patterns;
+}
+
+export default nextConfig;
